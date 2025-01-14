@@ -1,0 +1,78 @@
+// This is your Prisma schema file
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  name      String?
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events    Event[]  @relation("CreatedEvents")
+  tickets   Ticket[]
+}
+
+model Event {
+  id               String       @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String
+  date            DateTime
+  venue           String
+  price           Float
+  availableTickets Int
+  imageUrl        String?
+  createdBy       User         @relation("CreatedEvents", fields: [createdById], references: [id])
+  createdById     String       @db.ObjectId
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  tickets         Ticket[]
+}
+
+model Ticket {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  event     Event    @relation(fields: [eventId], references: [id])
+  eventId   String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @db.ObjectId
+  quantity  Int
+  status    TicketStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  transaction Transaction?
+}
+
+model Transaction {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  ticket        Ticket   @relation(fields: [ticketId], references: [id])
+  ticketId      String   @unique @db.ObjectId
+  amount        Float
+  status        TransactionStatus @default(PENDING)
+  mpesaReceiptNumber String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TicketStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+} 
