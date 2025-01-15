@@ -1,5 +1,6 @@
 'use client';
 
+import { useUser } from '@clerk/nextjs';
 import { CalendarIcon, MapPinIcon, CurrencyDollarIcon, TicketIcon } from '@heroicons/react/24/outline';
 
 interface Event {
@@ -16,13 +17,17 @@ interface Event {
 interface EventCardProps {
   event: Event;
   onClick?: () => void;
+  isAdminView?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export default function EventCard({ event, onClick }: EventCardProps) {
+export default function EventCard({ event, onClick, isAdminView, onEdit, onDelete }: EventCardProps) {
+  const { isSignedIn } = useUser();
+
   return (
     <div
-      className="bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow duration-300"
-      onClick={onClick}
+      className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
     >
       {event.imageUrl && (
         <div className="relative h-48">
@@ -65,6 +70,40 @@ export default function EventCard({ event, onClick }: EventCardProps) {
             <TicketIcon className="h-5 w-5 mr-2" />
             {event.availableTickets} tickets available
           </div>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          {isAdminView ? (
+            <div className="flex gap-2">
+              <button
+                onClick={onEdit}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Edit
+              </button>
+              <button
+                onClick={onDelete}
+                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={onClick}
+                className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!isSignedIn || event.availableTickets === 0}
+              >
+                {event.availableTickets === 0 ? 'Sold Out' : 'Book Now'}
+              </button>
+              {!isSignedIn && (
+                <p className="text-sm text-center text-gray-500">
+                  Please sign in to book tickets
+                </p>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
