@@ -28,6 +28,8 @@ export default function PaymentPage({ params }: { params: { ticketId: string } }
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const ticketId = params.ticketId;
+
   useEffect(() => {
     const fetchTicket = async () => {
       try {
@@ -47,7 +49,7 @@ export default function PaymentPage({ params }: { params: { ticketId: string } }
     if (isSignedIn) {
       fetchTicket();
     }
-  }, [isSignedIn, params.ticketId]);
+  }, [isSignedIn, ticketId]);
 
   const handlePayment = async (method: 'stk' | 'c2b') => {
     if (!phoneNumber) {
