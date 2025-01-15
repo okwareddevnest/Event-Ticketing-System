@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const dbUser = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { clerkId: userId },
     });
 
     if (!dbUser || dbUser.role !== 'ADMIN') {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const event = await prisma.event.create({
       data: {
         ...data,
-        createdById: userId,
+        createdById: dbUser.id,
       },
     });
 

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { motion } from 'framer-motion';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import EventCard from '@/components/EventCard';
@@ -49,16 +48,22 @@ export default function AdminEventsPage() {
 
   const handleCreateEvent = async (eventData: Omit<Event, 'id' | 'createdById' | 'createdAt' | 'updatedAt'>) => {
     try {
+      const formattedData = {
+        ...eventData,
+        date: new Date(eventData.date).toISOString(),
+      };
+
       const response = await fetch('/api/events', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(eventData),
+        body: JSON.stringify(formattedData),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create event');
+        const errorData = await response.text();
+        throw new Error(errorData || 'Failed to create event');
       }
 
       const newEvent = await response.json();
@@ -66,7 +71,8 @@ export default function AdminEventsPage() {
       setIsModalOpen(false);
       toast.success('Event created successfully!');
     } catch (error) {
-      toast.error('Failed to create event. Please try again.');
+      console.error('Error creating event:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to create event. Please try again.');
     }
   };
 
@@ -75,15 +81,13 @@ export default function AdminEventsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Manage Events</h1>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={() => setIsModalOpen(true)}
             className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors flex items-center"
           >
             <PlusIcon className="h-5 w-5 mr-2" />
             Create Event
-          </motion.button>
+          </button>
         </div>
 
         {isLoading ? (

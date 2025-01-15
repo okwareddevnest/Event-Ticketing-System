@@ -1,67 +1,93 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import Transaction from '@/models/Transaction';
-import Event from '@/models/Event';
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 
-export async function POST(request: Request) {
+const prisma = new PrismaClient();
+
+export async function POST(request: NextRequest) {
   try {
-    await dbConnect();
+    const data = await request.json();
+    
+    // Extract the callback data
+    const callbackData = data.Body.stkCallback;
+    const merchantRequestId = callbackData.MerchantRequestID;
+    const checkoutRequestId = callbackData.CheckoutRequestID;
+    const resultCode = callbackData.ResultCode;
+    const resultDesc = callbackData.ResultDesc;
 
-    const callbackData = await request.json();
-    const { Body: { stkCallback } } = callbackData;
-
-    // Find the transaction
-    const transaction = await Transaction.findOne({
-      mpesaRequestId: stkCallback.CheckoutRequestID,
+    // Find the transaction by checkoutRequestId
+    const transaction = await prisma.transaction.findFirst({
+      where: {
+        checkoutRequestId,
+      },
+      include: {
+        ticket: true,
+      },
     });
 
     if (!transaction) {
-      console.error('Transaction not found:', stkCallback.CheckoutRequestID);
-      return NextResponse.json({ 
-        success: false,
-        message: 'Transaction not found' 
-      });
+      console.error('Transaction not found for checkout request:', checkoutRequestId);
+      return new NextResponse('Transaction not found', { status: 404 });
     }
 
-    // Update transaction status based on result
-    if (stkCallback.ResultCode === 0) {
-      const callbackMetadata = stkCallback.CallbackMetadata.Item;
-      const mpesaReceiptNumber = callbackMetadata.find((item: any) => item.Name === 'MpesaReceiptNumber')?.Value;
+    if (resultCode === 0) {
+      // Payment successful
+      const callbackMetadata = callbackData.CallbackMetadata.Item;
+      const amount = callbackMetadata.find((item: any) => item.Name === 'Amount')?.Value;
+      const mpesaReceiptNumber = callbackMetadata.find(
+        (item: any) => item.Name === 'MpesaReceiptNumber'
+      )?.Value;
+      const transactionDate = callbackMetadata.find(
+        (item: any) => item.Name === 'TransactionDate'
+      )?.Value;
 
-      // Update transaction
-      transaction.status = 'completed';
-      transaction.mpesaReceiptNumber = mpesaReceiptNumber;
-      transaction.resultCode = stkCallback.ResultCode;
-      transaction.resultDesc = stkCallback.ResultDesc;
-      transaction.completedAt = new Date();
-      await transaction.save();
-
-      // Update event ticket count
-      await Event.findByIdAndUpdate(
-        transaction.eventId,
-        { $inc: { availableTickets: -1 } }
-      );
-
-      // Here you could also:
-      // 1. Send confirmation email to user
-      // 2. Generate and store ticket details
-      // 3. Send SMS confirmation
+      // Update transaction and ticket status
+      await prisma.$transaction([
+        prisma.transaction.update({
+          where: { id: transaction.id },
+          data: {
+            status: 'COMPLETED',
+            mpesaReceiptNumber,
+            completedAt: new Date(),
+          },
+        }),
+        prisma.ticket.update({
+          where: { id: transaction.ticketId },
+          data: {
+            status: 'CONFIRMED',
+          },
+        }),
+      ]);
     } else {
-      transaction.status = 'failed';
-      transaction.resultCode = stkCallback.ResultCode;
-      transaction.resultDesc = stkCallback.ResultDesc;
-      await transaction.save();
+      // Payment failed
+      await prisma.$transaction([
+        prisma.transaction.update({
+          where: { id: transaction.id },
+          data: {
+            status: 'FAILED',
+            failureReason: resultDesc,
+          },
+        }),
+        prisma.ticket.update({
+          where: { id: transaction.ticketId },
+          data: {
+            status: 'CANCELLED',
+          },
+        }),
+        // Restore available tickets
+        prisma.event.update({
+          where: { id: transaction.ticket.eventId },
+          data: {
+            availableTickets: {
+              increment: transaction.ticket.quantity,
+            },
+          },
+        }),
+      ]);
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Callback processed successfully',
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Callback processing error:', error);
-    return NextResponse.json(
-      { success: false, message: 'Failed to process callback' },
-      { status: 500 }
-    );
+    console.error('Error processing M-Pesa callback:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
   }
 } 

@@ -48,27 +48,52 @@ export async function POST(request: NextRequest) {
   }
 
   const eventType = evt.type;
+  console.log('Webhook event type:', eventType);
 
   if (eventType === 'user.created' || eventType === 'user.updated') {
-    const { id, email_addresses, first_name, last_name } = evt.data;
+    const { id: clerkId, email_addresses, first_name, last_name } = evt.data;
     const email = email_addresses[0]?.email_address;
     const name = [first_name, last_name].filter(Boolean).join(' ');
 
+    console.log('Processing user:', { clerkId, email, name });
+
     try {
-      await prisma.user.upsert({
-        where: { id },
-        update: {
-          email,
-          name,
-        },
-        create: {
-          id,
-          email,
-          name,
-          password: '', // We don't need password as we're using Clerk
-          role: 'USER', // Default role
-        },
+      // First try to find by clerkId
+      let user = await prisma.user.findUnique({
+        where: { clerkId }
       });
+
+      // If not found by clerkId, try by email
+      if (!user && email) {
+        user = await prisma.user.findUnique({
+          where: { email }
+        });
+      }
+
+      if (user) {
+        // Update existing user
+        const updatedUser = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            name,
+            clerkId,
+            email: email || user.email
+          }
+        });
+        console.log('Updated user:', updatedUser);
+      } else {
+        // Create new user
+        const newUser = await prisma.user.create({
+          data: {
+            email: email!,
+            name,
+            clerkId,
+            password: '', // We don't need password as we're using Clerk
+            role: 'USER', // Default role
+          }
+        });
+        console.log('Created new user:', newUser);
+      }
 
       return NextResponse.json({ message: 'User synchronized' });
     } catch (error) {
