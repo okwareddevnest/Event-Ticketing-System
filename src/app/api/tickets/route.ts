@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       prisma.ticket.create({
         data: {
           eventId,
-          userId: user.id, // Use our database user ID
+          userId: user.id,
           quantity,
           status: 'PENDING',
           transaction: {
@@ -95,11 +95,17 @@ export async function GET(request: NextRequest) {
 
     const tickets = await prisma.ticket.findMany({
       where: {
-        userId: user.id, // Use our database user ID
+        userId: user.id,
       },
       include: {
         event: true,
         transaction: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',

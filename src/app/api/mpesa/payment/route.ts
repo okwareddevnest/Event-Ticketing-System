@@ -9,7 +9,10 @@ export async function POST(request: NextRequest) {
   try {
     const { userId: clerkId } = getAuth(request);
     if (!clerkId) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json({
+        success: false,
+        message: 'Unauthorized'
+      }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
@@ -17,14 +20,20 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return new NextResponse('User not found', { status: 404 });
+      return NextResponse.json({
+        success: false,
+        message: 'User not found'
+      }, { status: 404 });
     }
 
     const { ticketId, phoneNumber, method } = await request.json();
 
     // Validate input
     if (!ticketId || !phoneNumber || !method) {
-      return new NextResponse('Invalid request data', { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid request data'
+      }, { status: 400 });
     }
 
     // Get the ticket and check if it exists
@@ -36,27 +45,46 @@ export async function POST(request: NextRequest) {
     });
 
     if (!ticket) {
-      return new NextResponse('Ticket not found', { status: 404 });
+      return NextResponse.json({
+        success: false,
+        message: 'Ticket not found'
+      }, { status: 404 });
     }
 
     if (ticket.userId !== user.id) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json({
+        success: false,
+        message: 'Unauthorized'
+      }, { status: 401 });
     }
 
     if (ticket.transaction?.status === 'COMPLETED') {
-      return new NextResponse('Ticket is already paid for', { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: 'Ticket is already paid for'
+      }, { status: 400 });
     }
 
     // Initialize M-Pesa payment based on method
     if (method === 'stk') {
       try {
         const callbackUrl = `${process.env.BASE_URL}/api/mpesa/callback`;
+        // Convert amount to whole number (multiply by 100 if it's in decimal)
+        const amount = Math.round(ticket.transaction!.amount);
+        
         const stkResponse = await initiateSTKPush(
           phoneNumber,
-          ticket.transaction!.amount,
+          amount,
           ticketId,
           callbackUrl
         );
+        
+        if (!stkResponse || !stkResponse.CheckoutRequestID) {
+          return NextResponse.json({
+            success: false,
+            message: 'Failed to initiate STK push'
+          }, { status: 500 });
+        }
 
         // Update transaction with checkout request ID
         await prisma.transaction.update({
@@ -64,34 +92,42 @@ export async function POST(request: NextRequest) {
           data: {
             checkoutRequestId: stkResponse.CheckoutRequestID,
             merchantRequestId: stkResponse.MerchantRequestID,
-          },
+            status: 'PENDING'
+          }
         });
 
         return NextResponse.json({
+          success: true,
           message: 'STK push initiated',
-          checkoutRequestId: stkResponse.CheckoutRequestID,
+          checkoutRequestId: stkResponse.CheckoutRequestID
         });
       } catch (error) {
-        console.error('STK push error:', error);
-        return new NextResponse(
-          'Failed to initiate M-Pesa payment. Please try again.',
-          { status: 500 }
-        );
+        console.error('STK push error:', error instanceof Error ? error.message : 'Unknown error');
+        return NextResponse.json({
+          success: false,
+          message: 'Failed to initiate M-Pesa payment. Please try again.',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
       }
     } else if (method === 'c2b') {
       // Return paybill details for manual payment
       return NextResponse.json({
+        success: true,
         paybill: process.env.BUSINESS_SHORTCODE,
         accountNumber: ticketId,
       });
     } else {
-      return new NextResponse('Invalid payment method', { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid payment method'
+      }, { status: 400 });
     }
   } catch (error) {
-    console.error('Error processing payment:', error);
-    return new NextResponse(
-      error instanceof Error ? error.message : 'Internal Server Error',
-      { status: 500 }
-    );
+    console.error('Error processing payment:', error instanceof Error ? error.message : 'Unknown error');
+    return NextResponse.json({
+      success: false,
+      message: 'Internal Server Error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 } 

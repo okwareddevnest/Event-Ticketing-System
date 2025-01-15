@@ -6,10 +6,8 @@ const prisma = new PrismaClient();
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
-  const id = context.params.id;
-  
   try {
     const { userId: clerkId } = getAuth(request);
     if (!clerkId) {
@@ -25,10 +23,16 @@ export async function GET(
     }
 
     const ticket = await prisma.ticket.findUnique({
-      where: { id },
+      where: { id: params.id },
       include: {
         event: true,
         transaction: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
       },
     });
 

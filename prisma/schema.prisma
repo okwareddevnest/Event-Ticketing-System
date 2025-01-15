@@ -51,14 +51,16 @@ model Ticket {
 }
 
 model Transaction {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  ticket        Ticket   @relation(fields: [ticketId], references: [id])
-  ticketId      String   @unique @db.ObjectId
-  amount        Float
-  status        TransactionStatus @default(PENDING)
+  id                 String     @id @default(auto()) @map("_id") @db.ObjectId
+  ticketId           String     @unique @db.ObjectId
+  amount             Float
+  status             TransactionStatus @default(PENDING)
   mpesaReceiptNumber String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  checkoutRequestId  String?
+  merchantRequestId  String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  ticket             Ticket     @relation(fields: [ticketId], references: [id])
 }
 
 enum Role {

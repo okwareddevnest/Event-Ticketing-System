@@ -27,18 +27,23 @@ export default function PaymentPage({ params }: { params: { ticketId: string } }
   const [isLoading, setIsLoading] = useState(true);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
   const ticketId = params.ticketId;
 
   useEffect(() => {
     const fetchTicket = async () => {
       try {
-        const response = await fetch(`/api/tickets/${params.ticketId}`);
+        const response = await fetch(`/api/tickets/${ticketId}`);
         if (!response.ok) {
           throw new Error('Failed to fetch ticket');
         }
         const data = await response.json();
         setTicket(data);
+        
+        // If ticket is already paid for, set payment completed
+        if (data.transaction?.status === 'COMPLETED') {
+          setPaymentCompleted(true);
+        }
       } catch (error) {
         toast.error('Failed to load ticket details. Please try again later.');
       } finally {
@@ -52,8 +57,8 @@ export default function PaymentPage({ params }: { params: { ticketId: string } }
   }, [isSignedIn, ticketId]);
 
   const handlePayment = async (method: 'stk' | 'c2b') => {
-    if (!phoneNumber) {
-      toast.error('Please enter your phone number');
+    if (!phoneNumber.match(/^254[0-9]{9}$/)) {
+      toast.error('Please enter a valid phone number starting with 254');
       return;
     }
 
@@ -65,48 +70,112 @@ export default function PaymentPage({ params }: { params: { ticketId: string } }
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ticketId: params.ticketId,
+          ticketId,
           phoneNumber,
           method,
         }),
       });
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error);
-      }
-
       const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Payment failed');
+      }
       
       if (method === 'stk') {
         toast.success('Please check your phone to complete the payment');
-      } else {
-        toast.success(`Please send KES ${ticket?.transaction.amount} to ${data.paybill}`);
-      }
-      
-      // Poll for payment status
-      const checkStatus = setInterval(async () => {
-        const statusResponse = await fetch(`/api/tickets/${params.ticketId}`);
-        const updatedTicket = await statusResponse.json();
         
-        if (updatedTicket.transaction.status === 'COMPLETED') {
+        // Poll for payment status
+        const checkStatus = setInterval(async () => {
+          try {
+            const statusResponse = await fetch(`/api/tickets/${ticketId}`);
+            if (!statusResponse.ok) {
+              throw new Error('Failed to check payment status');
+            }
+            
+            const updatedTicket = await statusResponse.json();
+            
+            if (updatedTicket.transaction?.status === 'COMPLETED') {
+              clearInterval(checkStatus);
+              setPaymentCompleted(true);
+              setIsProcessing(false);
+              toast.success('Payment completed successfully!');
+              // Redirect to tickets page after 2 seconds
+              setTimeout(() => {
+                router.push('/tickets');
+              }, 2000);
+            } else if (updatedTicket.transaction?.status === 'FAILED') {
+              clearInterval(checkStatus);
+              setIsProcessing(false);
+              toast.error('Payment failed. Please try again.');
+            }
+            // Keep polling if status is still PENDING
+          } catch (error) {
+            console.error('Error checking payment status:', error);
+          }
+        }, 5000); // Check every 5 seconds
+
+        // Stop polling after 2 minutes
+        setTimeout(() => {
           clearInterval(checkStatus);
-          toast.success('Payment completed successfully!');
-          router.push('/tickets');
-        }
-      }, 5000);
-
-      // Stop polling after 2 minutes
-      setTimeout(() => {
-        clearInterval(checkStatus);
-      }, 120000);
-
+          if (!paymentCompleted) {
+            setIsProcessing(false);
+            toast.error('Payment timeout. Please check your M-Pesa messages or try again.');
+          }
+        }, 120000);
+      } else {
+        toast.success(`Please send KES ${ticket?.transaction?.amount} to ${data.paybill}`);
+        setIsProcessing(false);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Payment failed. Please try again.');
-    } finally {
       setIsProcessing(false);
     }
   };
+
+  const handleReturnHome = () => {
+    router.push('/');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
+
+  if (paymentCompleted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
+          <div className="mb-4 text-green-500">
+            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold mb-4">Payment Successful!</h2>
+          <p className="text-gray-600 mb-6">
+            Your ticket for {ticket?.event.title} has been confirmed.
+          </p>
+          <div className="space-y-4">
+            <button
+              onClick={() => router.push('/tickets')}
+              className="w-full bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              View My Tickets
+            </button>
+            <button
+              onClick={handleReturnHome}
+              className="w-full bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Return to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isSignedIn) {
     return (
@@ -115,18 +184,6 @@ export default function PaymentPage({ params }: { params: { ticketId: string } }
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900">Please sign in</h2>
             <p className="mt-2 text-gray-600">You need to be signed in to complete payment.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen pt-24 pb-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-center items-center min-h-[400px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>
           </div>
         </div>
       </div>
@@ -212,6 +269,18 @@ export default function PaymentPage({ params }: { params: { ticketId: string } }
           </div>
         </div>
       </div>
+
+      {isProcessing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600 mx-auto mb-4"></div>
+            <h3 className="text-lg font-semibold mb-2">Processing Payment</h3>
+            <p className="text-gray-600">
+              Please complete the payment on your phone. This window will automatically update once payment is confirmed.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

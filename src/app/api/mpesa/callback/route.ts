@@ -7,6 +7,10 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     
+    if (!data || !data.Body || !data.Body.stkCallback) {
+      return new NextResponse('Invalid callback data', { status: 400 });
+    }
+    
     // Extract the callback data
     const callbackData = data.Body.stkCallback;
     const merchantRequestId = callbackData.MerchantRequestID;
@@ -14,10 +18,20 @@ export async function POST(request: NextRequest) {
     const resultCode = callbackData.ResultCode;
     const resultDesc = callbackData.ResultDesc;
 
-    // Find the transaction by checkoutRequestId
+    console.log('M-Pesa callback data:', {
+      merchantRequestId,
+      checkoutRequestId,
+      resultCode,
+      resultDesc
+    });
+
+    // Find the transaction by merchantRequestId and checkoutRequestId
     const transaction = await prisma.transaction.findFirst({
       where: {
-        checkoutRequestId,
+        AND: [
+          { merchantRequestId },
+          { checkoutRequestId }
+        ]
       },
       include: {
         ticket: true,
@@ -32,13 +46,11 @@ export async function POST(request: NextRequest) {
     if (resultCode === 0) {
       // Payment successful
       const callbackMetadata = callbackData.CallbackMetadata.Item;
-      const amount = callbackMetadata.find((item: any) => item.Name === 'Amount')?.Value;
       const mpesaReceiptNumber = callbackMetadata.find(
         (item: any) => item.Name === 'MpesaReceiptNumber'
       )?.Value;
-      const transactionDate = callbackMetadata.find(
-        (item: any) => item.Name === 'TransactionDate'
-      )?.Value;
+
+      console.log('Updating transaction with receipt:', mpesaReceiptNumber);
 
       // Update transaction and ticket status
       await prisma.$transaction([
@@ -47,28 +59,30 @@ export async function POST(request: NextRequest) {
           data: {
             status: 'COMPLETED',
             mpesaReceiptNumber,
-            completedAt: new Date(),
           },
         }),
         prisma.ticket.update({
-          where: { id: transaction.ticketId },
+          where: { id: transaction.ticket.id },
           data: {
             status: 'CONFIRMED',
           },
         }),
       ]);
+
+      console.log('Transaction and ticket updated successfully');
     } else {
       // Payment failed
+      console.log('Payment failed:', resultDesc);
+      
       await prisma.$transaction([
         prisma.transaction.update({
           where: { id: transaction.id },
           data: {
             status: 'FAILED',
-            failureReason: resultDesc,
           },
         }),
         prisma.ticket.update({
-          where: { id: transaction.ticketId },
+          where: { id: transaction.ticket.id },
           data: {
             status: 'CANCELLED',
           },

@@ -3,18 +3,24 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { toast } from 'sonner';
-import { CalendarIcon, MapPinIcon, TicketIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, MapPinIcon, TicketIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
+import dynamic from 'next/dynamic';
+
+// Dynamically import TicketPDF to avoid SSR issues
+const TicketPDF = dynamic(() => import('@/components/TicketPDF'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex justify-center items-center h-[600px] bg-gray-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>
+    </div>
+  ),
+});
 
 interface Ticket {
   id: string;
-  eventId: string;
-  userId: string;
   quantity: number;
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
-  createdAt: Date;
-  updatedAt: Date;
+  status: string;
   event: {
-    id: string;
     title: string;
     description: string;
     date: Date;
@@ -22,18 +28,22 @@ interface Ticket {
     price: number;
     imageUrl?: string;
   };
-  transaction?: {
-    id: string;
+  transaction: {
     amount: number;
-    status: 'PENDING' | 'COMPLETED' | 'FAILED';
+    status: string;
     mpesaReceiptNumber?: string;
+  };
+  user: {
+    name: string;
+    email: string;
   };
 }
 
 export default function TicketsPage() {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -55,6 +65,14 @@ export default function TicketsPage() {
       fetchTickets();
     }
   }, [isSignedIn]);
+
+  const handleViewTicket = (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+  };
+
+  const handleCloseTicket = () => {
+    setSelectedTicket(null);
+  };
 
   if (!isSignedIn) {
     return (
@@ -130,7 +148,7 @@ export default function TicketsPage() {
                     <div className="text-right">
                       <div className="text-sm font-medium text-gray-500">Total Amount</div>
                       <div className="text-xl font-bold text-purple-600">
-                        KES {(ticket.event.price * ticket.quantity).toLocaleString()}
+                        KES {ticket.transaction.amount.toLocaleString()}
                       </div>
                       <div className={`mt-2 inline-flex px-3 py-1 rounded-full text-sm font-medium
                         ${ticket.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
@@ -154,6 +172,16 @@ export default function TicketsPage() {
                           </div>
                         )}
                       </div>
+                      
+                      {ticket.status === 'CONFIRMED' && (
+                        <button
+                          onClick={() => handleViewTicket(ticket)}
+                          className="mt-4 flex items-center text-purple-600 hover:text-purple-700"
+                        >
+                          <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
+                          View Ticket PDF
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -162,6 +190,25 @@ export default function TicketsPage() {
           </div>
         )}
       </div>
+
+      {selectedTicket && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Ticket PDF</h3>
+              <button
+                onClick={handleCloseTicket}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-4">
+              <TicketPDF ticket={selectedTicket} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
