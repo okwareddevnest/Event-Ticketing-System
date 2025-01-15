@@ -103,8 +103,8 @@ BASE_URL=your_base_url
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/plp-events-platform.git
-cd plp-events-platform
+git clone https://github.com/okwareddevnest/Event-Ticketing-System.git
+cd Event-Ticketing-System
 ```
 
 2. Install dependencies:
