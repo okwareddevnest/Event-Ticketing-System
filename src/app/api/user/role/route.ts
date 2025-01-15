@@ -1,29 +1,38 @@
-import { NextResponse, NextRequest } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
-
-export async function GET(request: NextRequest) {
+export async function GET(req: Request) {
   try {
-    const { userId: clerkId } = getAuth(request);
-    
-    if (!clerkId) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    const { userId } = getAuth(req);
+
+    if (!userId) {
+      return NextResponse.json({ role: 'GUEST' });
     }
 
     const user = await prisma.user.findUnique({
-      where: { clerkId },
-      select: { role: true }
+      where: { clerkId: userId },
+      select: { role: true, name: true }
     });
 
     if (!user) {
-      return new NextResponse('User not found', { status: 404 });
+      return NextResponse.json({ role: 'GUEST' });
+    }
+
+    // Double-check admin status based on username pattern
+    const isAdmin = user.name?.startsWith('plp_Admin-');
+    if (isAdmin && user.role !== 'ADMIN') {
+      // Update to admin if username matches pattern but role isn't set
+      await prisma.user.update({
+        where: { clerkId: userId },
+        data: { role: 'ADMIN' }
+      });
+      return NextResponse.json({ role: 'ADMIN' });
     }
 
     return NextResponse.json({ role: user.role });
   } catch (error) {
-    console.error('Error fetching user role:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    console.error('Error getting user role:', error);
+    return NextResponse.json({ role: 'GUEST' }, { status: 500 });
   }
 } 
