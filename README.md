@@ -2,7 +2,7 @@
 
 A modern event ticketing platform built with Next.js, featuring M-Pesa integration for payments and real-time ticket management.
 
-![Power Learn Project Logo](public/plp-logo.png)
+![Power Learn Project Logo](public/1705663585086.png)
 
 ## Features
 
