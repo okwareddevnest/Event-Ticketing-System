@@ -27,7 +27,7 @@ export default function EventCard({ event, onClick, isAdminView, onEdit, onDelet
 
   return (
     <div
-      className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
+      className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
     >
       {event.imageUrl && (
         <div className="relative h-48">
@@ -40,12 +40,12 @@ export default function EventCard({ event, onClick, isAdminView, onEdit, onDelet
       )}
 
       <div className="p-6">
-        <h3 className="text-xl font-bold text-gray-900 mb-2">{event.title}</h3>
+        <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1">{event.title}</h3>
         <p className="text-gray-600 line-clamp-2 mb-4">{event.description}</p>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-center text-gray-600">
-            <CalendarIcon className="h-5 w-5 mr-2" />
+            <CalendarIcon className="h-5 w-5 mr-2 text-[#00B3B0]" />
             {new Date(event.date).toLocaleDateString('en-US', {
               weekday: 'long',
               year: 'numeric',
@@ -57,17 +57,17 @@ export default function EventCard({ event, onClick, isAdminView, onEdit, onDelet
           </div>
 
           <div className="flex items-center text-gray-600">
-            <MapPinIcon className="h-5 w-5 mr-2" />
+            <MapPinIcon className="h-5 w-5 mr-2 text-[#E6007E]" />
             {event.venue}
           </div>
 
           <div className="flex items-center text-gray-600">
-            <CurrencyDollarIcon className="h-5 w-5 mr-2" />
+            <CurrencyDollarIcon className="h-5 w-5 mr-2 text-[#00B3B0]" />
             KES {event.price.toLocaleString()}
           </div>
 
           <div className="flex items-center text-gray-600">
-            <TicketIcon className="h-5 w-5 mr-2" />
+            <TicketIcon className="h-5 w-5 mr-2 text-[#E6007E]" />
             {event.availableTickets} tickets available
           </div>
         </div>
@@ -77,7 +77,7 @@ export default function EventCard({ event, onClick, isAdminView, onEdit, onDelet
             <div className="flex gap-2">
               <button
                 onClick={onEdit}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                className="flex-1 bg-[#00B3B0] text-white px-4 py-2 rounded-md hover:bg-[#009B98] transition-colors"
               >
                 Edit
               </button>
@@ -92,7 +92,7 @@ export default function EventCard({ event, onClick, isAdminView, onEdit, onDelet
             <>
               <button
                 onClick={onClick}
-                className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[#E6007E] text-white px-4 py-2 rounded-md hover:bg-[#CC0070] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!isSignedIn || event.availableTickets === 0}
               >
                 {event.availableTickets === 0 ? 'Sold Out' : 'Book Now'}
