@@ -96,7 +96,7 @@ export default function HomePage() {
       </section>
 
       {/* Events Section */}
-      <section id="events" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section id="events" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-gray-50/95 to-gray-100/95 backdrop-blur-sm">
         <motion.div
           className="max-w-7xl mx-auto"
           initial={{ y: 50, opacity: 0 }}
@@ -104,7 +104,7 @@ export default function HomePage() {
           transition={{ duration: 0.8 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl font-bold text-center mb-12 text-gray-900">
+          <h2 className="text-4xl font-bold text-center mb-12 bg-gradient-to-r from-[#00B3B0] to-[#E6007E] text-transparent bg-clip-text">
             Upcoming Events
           </h2>
 
@@ -139,7 +139,7 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-t from-gray-100/95 to-gray-50/95 backdrop-blur-sm">
         <motion.div
           className="max-w-7xl mx-auto"
           initial={{ y: 50, opacity: 0 }}
@@ -147,7 +147,7 @@ export default function HomePage() {
           transition={{ duration: 0.8 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl font-bold text-center mb-16 text-gray-900">
+          <h2 className="text-4xl font-bold text-center mb-16 bg-gradient-to-r from-[#00B3B0] to-[#E6007E] text-transparent bg-clip-text">
             Why Choose Our Events?
           </h2>
 
@@ -171,7 +171,7 @@ export default function HomePage() {
             ].map((feature, index) => (
               <motion.div
                 key={index}
-                className="text-center"
+                className="text-center p-6 rounded-lg bg-white/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                 initial={{ y: 50, opacity: 0 }}
                 whileInView={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}

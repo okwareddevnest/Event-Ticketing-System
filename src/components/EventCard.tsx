@@ -27,7 +27,7 @@ export default function EventCard({ event, onClick, isAdminView, onEdit, onDelet
 
   return (
     <div
-      className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+      className="bg-white/70 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100"
     >
       {event.imageUrl && (
         <div className="relative h-48">
@@ -36,11 +36,14 @@ export default function EventCard({ event, onClick, isAdminView, onEdit, onDelet
             alt={event.title}
             className="w-full h-full object-cover"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
         </div>
       )}
 
       <div className="p-6">
-        <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1">{event.title}</h3>
+        <h3 className="text-xl font-bold bg-gradient-to-r from-[#00B3B0] to-[#E6007E] text-transparent bg-clip-text mb-2 line-clamp-1">
+          {event.title}
+        </h3>
         <p className="text-gray-600 line-clamp-2 mb-4">{event.description}</p>
 
         <div className="space-y-3">
@@ -77,13 +80,13 @@ export default function EventCard({ event, onClick, isAdminView, onEdit, onDelet
             <div className="flex gap-2">
               <button
                 onClick={onEdit}
-                className="flex-1 bg-[#00B3B0] text-white px-4 py-2 rounded-md hover:bg-[#009B98] transition-colors"
+                className="flex-1 bg-[#00B3B0]/90 text-white px-4 py-2 rounded-md hover:bg-[#00B3B0] transition-colors"
               >
                 Edit
               </button>
               <button
                 onClick={onDelete}
-                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+                className="flex-1 bg-red-600/90 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors"
               >
                 Delete
               </button>
@@ -92,7 +95,7 @@ export default function EventCard({ event, onClick, isAdminView, onEdit, onDelet
             <>
               <button
                 onClick={onClick}
-                className="w-full bg-[#E6007E] text-white px-4 py-2 rounded-md hover:bg-[#CC0070] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[#E6007E]/90 text-white px-4 py-2 rounded-md hover:bg-[#E6007E] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!isSignedIn || event.availableTickets === 0}
               >
                 {event.availableTickets === 0 ? 'Sold Out' : 'Book Now'}
